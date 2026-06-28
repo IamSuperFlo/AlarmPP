@@ -5,7 +5,7 @@
 
 def modelDir = "$projectDir/src/main/assets"
 def modelFile = "$modelDir/model.tflite"
-def modelUrl = "https://storage.googleapis.com/download.tensorflow.org/models/tflite/task_library/image_classification/android/lite-model_mobilenet_v1_1.0_224_1_metadata_1.tflite"
+def modelUrl = "https://storage.googleapis.com/mediapipe-models/image_classifier/efficientnet_lite0/float32/1/efficientnet_lite0.tflite"
 
 task downloadModel {
     doLast {
