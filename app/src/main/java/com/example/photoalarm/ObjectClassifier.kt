@@ -72,5 +72,9 @@ class ObjectClassifier(context: Context) {
         )
 
         fun randomTarget(): Target = TARGETS.random()
+
+        /** Picks [n] distinct random targets (for difficulty levels). */
+        fun randomTargets(n: Int): List<Target> =
+            TARGETS.shuffled().take(n.coerceIn(1, TARGETS.size))
     }
 }

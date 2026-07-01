@@ -6,6 +6,8 @@ import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
@@ -19,20 +21,35 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import com.example.photoalarm.databinding.ActivityAlarmBinding
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.concurrent.Executors
 
 /**
  * Full-screen alarm. Shows over the lock screen, blocks the back button, and only
- * lets the user dismiss the alarm after photographing the requested object.
+ * lets the user dismiss the alarm after photographing the requested object(s).
+ * Supports difficulty (multiple objects) and snooze.
  */
 class AlarmActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityAlarmBinding
-    private lateinit var target: ObjectClassifier.Target
+    private var alarm: Alarm? = null
+    private var snoozeCount = 0
+    private var targets: List<ObjectClassifier.Target> = emptyList()
+    private var index = 0
+
     private var imageCapture: ImageCapture? = null
     private var classifier: ObjectClassifier? = null
     private var dismissed = false
     private val bgExecutor = Executors.newSingleThreadExecutor()
+    private val clockHandler = Handler(Looper.getMainLooper())
+    private val clockRunnable = object : Runnable {
+        override fun run() {
+            binding.txtClock.text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+            clockHandler.postDelayed(this, 10_000)
+        }
+    }
 
     private val cameraPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -48,35 +65,66 @@ class AlarmActivity : AppCompatActivity() {
         setContentView(binding.root)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-        target = ObjectClassifier.randomTarget()
-        binding.txtTarget.text = target.displayRo
+        val id = intent.getIntExtra(AlarmScheduler.EXTRA_ID, -1)
+        snoozeCount = intent.getIntExtra(AlarmScheduler.EXTRA_SNOOZE_COUNT, 0)
+        alarm = if (id >= 0) AlarmStore.get(this, id) else null
 
-        // Load the TFLite model off the UI thread.
+        binding.txtLabel.text = alarm?.label ?: ""
+        clockRunnable.run()
+
+        val count = alarm?.objectCount ?: 1
+        targets = ObjectClassifier.randomTargets(count)
+        showCurrentTarget()
+
+        setupSnoozeButton()
+
         bgExecutor.execute {
             try {
                 classifier = ObjectClassifier(applicationContext)
             } catch (e: Exception) {
-                runOnUiThread {
-                    binding.txtResult.text = "Eroare la încărcarea modelului AI: ${e.message}"
-                }
+                runOnUiThread { binding.txtResult.text = "Eroare la încărcarea modelului AI: ${e.message}" }
             }
         }
 
         binding.btnCapture.setOnClickListener { capture() }
 
-        // Block the back button — the alarm cannot be dismissed this way.
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                Toast.makeText(this@AlarmActivity, "Fă poză la ${target.displayRo} ca să oprești!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    this@AlarmActivity,
+                    "Fă poză la ${currentTarget().displayRo} ca să oprești!",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         })
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
             == PackageManager.PERMISSION_GRANTED
-        ) {
-            startCamera()
+        ) startCamera() else cameraPermission.launch(Manifest.permission.CAMERA)
+    }
+
+    private fun currentTarget() = targets[index.coerceIn(0, targets.size - 1)]
+
+    private fun showCurrentTarget() {
+        binding.txtTarget.text = currentTarget().displayRo
+        binding.txtProgress.text =
+            if (targets.size > 1) "Obiect ${index + 1} din ${targets.size}" else ""
+    }
+
+    private fun setupSnoozeButton() {
+        val a = alarm
+        val canSnooze = a != null && a.snoozeEnabled && snoozeCount < a.maxSnoozes
+        if (canSnooze) {
+            val left = a!!.maxSnoozes - snoozeCount
+            binding.btnSnooze.text = "Amână ${a.snoozeMinutes} min (mai ai $left)"
+            binding.btnSnooze.setOnClickListener {
+                AlarmScheduler.scheduleSnooze(this, a, snoozeCount + 1)
+                Toast.makeText(this, "Amânat ${a.snoozeMinutes} minute.", Toast.LENGTH_SHORT).show()
+                AlarmService.stop(this)
+                finish()
+            }
         } else {
-            cameraPermission.launch(Manifest.permission.CAMERA)
+            binding.btnSnooze.visibility = android.view.View.GONE
         }
     }
 
@@ -116,10 +164,8 @@ class AlarmActivity : AppCompatActivity() {
     }
 
     private fun capture() {
-        val ic = imageCapture
-        if (ic == null) {
-            Toast.makeText(this, "Camera nu e gata.", Toast.LENGTH_SHORT).show()
-            return
+        val ic = imageCapture ?: run {
+            Toast.makeText(this, "Camera nu e gata.", Toast.LENGTH_SHORT).show(); return
         }
         if (classifier == null) {
             binding.txtResult.text = "Modelul AI încă se încarcă, mai încearcă o dată..."
@@ -131,10 +177,9 @@ class AlarmActivity : AppCompatActivity() {
             object : ImageCapture.OnImageCapturedCallback() {
                 override fun onCaptureSuccess(image: ImageProxy) {
                     val rotation = image.imageInfo.rotationDegrees
-                    val bitmap = image.toBitmap()
+                    val bmp = image.toBitmap()
                     image.close()
-                    val rotated = rotate(bitmap, rotation)
-                    analyze(rotated)
+                    analyze(rotate(bmp, rotation))
                 }
 
                 override fun onError(exception: ImageCaptureException) {
@@ -151,6 +196,7 @@ class AlarmActivity : AppCompatActivity() {
     }
 
     private fun analyze(bitmap: Bitmap) {
+        val target = currentTarget()
         bgExecutor.execute {
             val result = try {
                 classifier?.matches(bitmap, target)
@@ -158,22 +204,30 @@ class AlarmActivity : AppCompatActivity() {
                 null
             }
             runOnUiThread {
-                if (result == null) {
-                    binding.txtResult.text = "Nu am putut analiza poza. Mai încearcă."
-                    return@runOnUiThread
-                }
-                if (result.matched) {
-                    onSuccess()
-                } else {
-                    val pct = (result.bestScore * 100).toInt()
-                    binding.txtResult.text =
-                        "Nu pare ${target.displayRo}. Am văzut: ${result.bestLabel} ($pct%). Încearcă din nou!"
+                when {
+                    result == null -> binding.txtResult.text = "Nu am putut analiza poza. Mai încearcă."
+                    result.matched -> onTargetMatched()
+                    else -> {
+                        val pct = (result.bestScore * 100).toInt()
+                        binding.txtResult.text =
+                            "Nu pare ${target.displayRo}. Am văzut: ${result.bestLabel} ($pct%). Încearcă din nou!"
+                    }
                 }
             }
         }
     }
 
-    private fun onSuccess() {
+    private fun onTargetMatched() {
+        if (index < targets.size - 1) {
+            index++
+            binding.txtResult.text = "Corect! Următorul obiect 👇"
+            showCurrentTarget()
+        } else {
+            dismiss()
+        }
+    }
+
+    private fun dismiss() {
         if (dismissed) return
         dismissed = true
         binding.txtResult.text = "Corect! Alarmă oprită. Trezirea! ☀"
@@ -183,6 +237,7 @@ class AlarmActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        clockHandler.removeCallbacks(clockRunnable)
         classifier?.close()
         bgExecutor.shutdown()
     }
