@@ -5,9 +5,12 @@
     android:layout_height="wrap_content"
     android:layout_marginStart="8dp"
     android:layout_marginEnd="8dp"
-    android:layout_marginTop="10dp"
-    app:cardCornerRadius="20dp"
-    app:cardElevation="2dp">
+    android:layout_marginTop="12dp"
+    app:cardBackgroundColor="@color/surface"
+    app:cardCornerRadius="22dp"
+    app:cardElevation="0dp"
+    app:strokeColor="@color/neon_purple"
+    app:strokeWidth="2dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -15,6 +18,12 @@
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:padding="18dp">
+
+        <View
+            android:layout_width="5dp"
+            android:layout_height="46dp"
+            android:layout_marginEnd="14dp"
+            android:background="@drawable/rgb_bar" />
 
         <LinearLayout
             android:layout_width="0dp"
@@ -27,7 +36,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="07:00"
-                android:textSize="36sp"
+                android:textColor="@color/neon_cyan"
+                android:textSize="38sp"
                 android:textStyle="bold" />
 
             <TextView
@@ -35,6 +45,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="În fiecare zi"
+                android:textColor="@color/text_secondary"
                 android:textSize="14sp"
                 android:paddingTop="2dp" />
         </LinearLayout>

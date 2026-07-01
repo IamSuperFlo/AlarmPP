@@ -157,9 +157,13 @@
         <Button
             android:id="@+id/btnSave"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="58dp"
             android:layout_marginTop="24dp"
-            android:text="Salvează" />
+            android:text="Salvează"
+            android:textStyle="bold"
+            android:textColor="@color/white"
+            android:background="@drawable/btn_gradient"
+            app:backgroundTint="@null" />
 
         <Button
             android:id="@+id/btnTest"

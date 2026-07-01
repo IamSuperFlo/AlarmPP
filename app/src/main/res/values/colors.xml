@@ -2,9 +2,25 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
-    <color name="purple_500">#FF6750A4</color>
-    <color name="purple_700">#FF4F378B</color>
-    <color name="teal_200">#FF03DAC5</color>
-    <color name="alarm_bg">#FF101418</color>
-    <color name="accent">#FFFFC107</color>
+
+    <!-- Wuop neon palette (dark base, high contrast) -->
+    <color name="bg_dark">#FF0E0A1F</color>
+    <color name="bg_dark2">#FF160E33</color>
+    <color name="surface">#FF1C1440</color>
+    <color name="surface_hi">#FF261A57</color>
+
+    <color name="neon_magenta">#FFFF2D95</color>
+    <color name="neon_pink">#FFFF5CD1</color>
+    <color name="neon_purple">#FFB14CFF</color>
+    <color name="neon_cyan">#FF00E5FF</color>
+    <color name="neon_blue">#FF3D7BFF</color>
+    <color name="neon_green">#FF39FF14</color>
+    <color name="neon_yellow">#FFFFE23D</color>
+
+    <color name="text_primary">#FFFFFFFF</color>
+    <color name="text_secondary">#FFC7C0E8</color>
+
+    <!-- Alarm screen background + accent -->
+    <color name="alarm_bg">#FF0A0716</color>
+    <color name="accent">#FF00E5FF</color>
 </resources>

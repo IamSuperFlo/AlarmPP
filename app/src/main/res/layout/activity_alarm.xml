@@ -92,7 +92,10 @@
             android:layout_height="66dp"
             android:text="FĂ POZĂ"
             android:textSize="20sp"
-            app:cornerRadius="18dp" />
+            android:textStyle="bold"
+            android:textColor="@color/white"
+            android:background="@drawable/btn_gradient"
+            app:backgroundTint="@null" />
 
         <Button
             android:id="@+id/btnSnooze"

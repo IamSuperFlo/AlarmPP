@@ -1,3 +1,4 @@
 <resources>
-    <string name="app_name">Photo Alarm</string>
+    <string name="app_name">Wuop</string>
+    <string name="tagline">Wake Up Or Cry</string>
 </resources>
